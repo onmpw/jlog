@@ -17,6 +17,8 @@ PHP_ARG_ENABLE(jlog, whether to enable jlog support,
 Make sure that the comment is aligned:
 [  --enable-jlog           Enable jlog support])
 
+jlog_src="jlog.c storage/jlog_storage.c"
+
 if test "$PHP_JLOG" != "no"; then
   dnl Write more examples of tests here...
 
@@ -57,7 +59,7 @@ if test "$PHP_JLOG" != "no"; then
   dnl   -L$JLOG_DIR/$PHP_LIBDIR -lm
   dnl ])
   dnl
-  dnl PHP_SUBST(JLOG_SHARED_LIBADD)
+  PHP_SUBST(JLOG_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(jlog, jlog.c, $ext_shared)
+  PHP_NEW_EXTENSION(jlog, ${jlog_src}, $ext_shared)
 fi

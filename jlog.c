@@ -43,7 +43,7 @@ void *say_hello()
     while(1){
         n++;
         printf("Hello Thread! %d\n",n);
-        if(n == 10) {
+        if(n == 5) {
             break;
         }
         sleep(1);
@@ -51,8 +51,7 @@ void *say_hello()
 }
 
 
-
-PHP_FUNCTION(log_start)
+PHP_FUNCTION(jlog_start)
 {
     if(server_start != 0) {
         return ;
@@ -70,15 +69,14 @@ PHP_FUNCTION(log_start)
     php_printf("Hello World6\n");
 
     pthread_join(tid,NULL);
-
 }
 
-PHP_FUNCTION(log_info)
+PHP_FUNCTION(jlog_info)
 {
 
 }
 
-PHP_FUNCTION(log_stop)
+PHP_FUNCTION(jlog_stop)
 {
     if(server_start == 0) {
         return ;
@@ -106,6 +104,9 @@ PHP_MINIT_FUNCTION(jlog)
 	REGISTER_INI_ENTRIES();
 	*/
 	server_start = 0;
+    if(!queue_init()) {
+        php_error(E_ERROR,"队列初始化失败\n");
+    }
 	return SUCCESS;
 }
 /* }}} */
@@ -159,8 +160,8 @@ PHP_MINFO_FUNCTION(jlog)
  * Every user visible function must have an entry in jlog_functions[].
  */
 const zend_function_entry jlog_functions[] = {
-	PHP_FE(log_start,NULL)
-	PHP_FE(log_stop,NULL)
+	PHP_FE(jlog_start,NULL)
+	PHP_FE(jlog_stop,NULL)
 	PHP_FE_END	/* Must be the last line in jlog_functions[] */
 };
 /* }}} */
