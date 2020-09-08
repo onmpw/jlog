@@ -45,5 +45,10 @@ ZEND_END_MODULE_GLOBALS(jlog)
 #define JLOG_G(v) (jlog_globals.v)
 #endif
 
+#define J_ERROR     1
+#define J_WARNING   2
+#define J_INFO      3
+#define J_DEBUG     4
+#define J_NOTICE    5
 #endif	/* PHP_JLOG_H */
 

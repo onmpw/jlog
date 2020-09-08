@@ -16,6 +16,8 @@ ZEND_DECLARE_MODULE_GLOBALS(jlog)
 /* True global resources - no need for thread safety here */
 static int le_jlog;
 static int server_start;
+pthread_t tid;
+static int idle;
 /* {{{ PHP_INI
  */
 /* Remove comments and fill if you need to have entries in php.ini
@@ -37,17 +39,26 @@ PHP_INI_END()
    function definition, where the functions purpose is also documented. Please 
    follow this convention for the convenience of others editing your code.
 */
-void *say_hello()
+void *start_write_log()
 {
-    int n = 0;
+    log_node *n;
+    idle = 1;
     while(1){
-        n++;
-        printf("Hello Thread! %d\n",n);
-        if(n == 5) {
-            break;
+        if(!checkQueueIsEmpty()) {
+            n = outNode();
+            idle = 0; // 置为0 说明没有空闲
+
+            // todo 写文件
+            printf("getNode log_type:%d val:%s\n", n->log_type, n->val.data);
         }
-        sleep(1);
+        idle = 1;
+        usleep(500);
     }
+}
+
+static int checkQueueEmpty()
+{
+    return checkQueueIsEmpty();
 }
 
 
@@ -58,30 +69,34 @@ PHP_FUNCTION(jlog_start)
     }
     server_start = 1;
 
-    pthread_t tid;
-    int ret = pthread_create(&tid,NULL,say_hello,NULL);
-
-    php_printf("Hello World\n");
-    php_printf("Hello World2\n");
-    php_printf("Hello World3\n");
-    php_printf("Hello World4\n");
-    php_printf("Hello World5\n");
-    php_printf("Hello World6\n");
-
-    pthread_join(tid,NULL);
+    int ret = pthread_create(&tid,NULL,start_write_log,NULL);
 }
 
 PHP_FUNCTION(jlog_info)
 {
+    zval *z;
 
+    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"z",&z) == FAILURE) {
+        return;
+    }
+
+    if(Z_TYPE_P(z) == IS_STRING) {
+        putNode(Z_STRVAL_P(z),Z_STRLEN_P(z),J_INFO);
+    }
+
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(jlog_stop)
 {
+    log_node *n;
     if(server_start == 0) {
         return ;
     }
     server_start = 0;
+    while(!checkQueueEmpty() || !idle) {}
+
+    pthread_kill(tid,9);
 }
 
 
@@ -107,6 +122,7 @@ PHP_MINIT_FUNCTION(jlog)
     if(!queue_init()) {
         php_error(E_ERROR,"队列初始化失败\n");
     }
+
 	return SUCCESS;
 }
 /* }}} */
@@ -162,6 +178,7 @@ PHP_MINFO_FUNCTION(jlog)
 const zend_function_entry jlog_functions[] = {
 	PHP_FE(jlog_start,NULL)
 	PHP_FE(jlog_stop,NULL)
+	PHP_FE(jlog_info,NULL)
 	PHP_FE_END	/* Must be the last line in jlog_functions[] */
 };
 /* }}} */
