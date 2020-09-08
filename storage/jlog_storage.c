@@ -85,7 +85,7 @@ int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize,
             continue;
         }
 
-        if (size > JLOG_VSG(node_size)- sizeof(unsigned int)*3-FILE_NAME_LEN) {
+        if (size > JLOG_VSG(node_size)- sizeof(unsigned int)*4 - FILE_NAME_LEN) {
             return 0;
         }
 
@@ -94,7 +94,9 @@ int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize,
         val->log_type = log_type;
         val->val.len = strlen(data);
         val->val.size = size;
+        val->val.fsize = fsize;
         memcpy(val->val.fname,file_name,fsize);
+        val->val.fname[fsize] = '\0';
         memcpy(val->val.data, data, size);
 
         // 加入队列

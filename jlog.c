@@ -42,6 +42,7 @@ PHP_INI_END()
 void *start_write_log()
 {
     log_node *n;
+    char *file;
     idle = 1;
     while(1){
         if(!checkQueueIsEmpty()) {
@@ -49,7 +50,7 @@ void *start_write_log()
             idle = 0; // 置为0 说明没有空闲
 
             // todo 写文件
-            printf("getNode log_type:%d val:%s\n", n->log_type, n->val.data);
+            printf("getNode log_type:%d val:%s filename:%s\n", n->log_type, n->val.data, n->val.fname);
         }
         idle = 1;
         usleep(500);
@@ -74,14 +75,14 @@ PHP_FUNCTION(jlog_start)
 
 PHP_FUNCTION(jlog_info)
 {
-    zval *z;
+    zval *data,*file;
 
-    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"z",&z) == FAILURE) {
+    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"zz",&file,&data) == FAILURE) {
         return;
     }
 
-    if(Z_TYPE_P(z) == IS_STRING) {
-        putNode(Z_STRVAL_P(z),Z_STRLEN_P(z),J_INFO);
+    if(Z_TYPE_P(data) == IS_STRING) {
+        putNode(Z_STRVAL_P(data),Z_STRVAL_P(file),Z_STRLEN_P(data),Z_STRLEN_P(file),J_INFO);
     }
 
     RETURN_TRUE;

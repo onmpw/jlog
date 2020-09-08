@@ -8,7 +8,7 @@
 #define NODE_NUM         1024   // 元素个数
 #define NODE_MIN_SIZE    (10*1024)  // 节点最小内存  10K
 #define STORAGE_SIZE        (32*1024*1024)  // 分配的内存  默认 32MB
-#define FILE_NAME_LEN     256
+#define FILE_NAME_LEN     128
 
 
 #define PHP_USER_ALLOC      emalloc
@@ -22,7 +22,8 @@ typedef struct _log_storage_mm {
 typedef struct _log_node_val {
     unsigned int len;
     unsigned int size;
-    char fname[FILE_NAME_LEN]
+    unsigned int fsize;
+    char fname[FILE_NAME_LEN];
     char data[1];
 } log_node_val;
 
@@ -45,7 +46,7 @@ extern queue_list *jlog_queue;
 
 int queue_init(void);
 log_node *outNode();
-int putNode(char * data, unsigned int size, unsigned int log_type);
+int putNode(char * data, char *file_name,unsigned int size, unsigned int fsize, unsigned int log_type);
 int checkQueueIsEmpty();
 
 
