@@ -18,6 +18,7 @@ static int le_jlog;
 static int server_start;
 pthread_t tid;
 static int idle;
+log_node *var_node;
 /* {{{ PHP_INI
  */
 /* Remove comments and fill if you need to have entries in php.ini
@@ -46,13 +47,15 @@ void *start_write_log()
     idle = 1;
     while(1){
         if(!checkQueueIsEmpty()) {
-            n = outNode();
+            outNode(&var_node);
             idle = 0; // 置为0 说明没有空闲
 
             // todo 写文件
-            printf("getNode log_type:%d val:%s filename:%s\n", n->log_type, n->val.data, n->val.fname);
+            printf("getNode-- log_type:%d val:%s filename:%s idle:%d\n", var_node->log_type, var_node->val.data, var_node->val.fname,idle);
+            memset((char *)var_node,0,JLOG_VSG(node_size));
+        }else{
+            idle = 1;
         }
-        idle = 1;
         usleep(500);
     }
 }
@@ -124,6 +127,13 @@ PHP_MINIT_FUNCTION(jlog)
         php_error(E_ERROR,"队列初始化失败\n");
     }
 
+    if (pthread_mutex_init(&mutex, NULL) != 0){
+        // 互斥锁初始化失败
+        php_error(E_ERROR,"互斥锁初始化失败\n");
+    }
+
+    var_node = PHP_USER_ALLOC(JLOG_VSG(node_size));
+
 	return SUCCESS;
 }
 /* }}} */
@@ -136,6 +146,7 @@ PHP_MSHUTDOWN_FUNCTION(jlog)
 	UNREGISTER_INI_ENTRIES();
 	*/
 	server_start = 0;
+	PHP_USER_FREE(var_node);
 	return SUCCESS;
 }
 /* }}} */

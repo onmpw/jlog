@@ -44,8 +44,10 @@ typedef struct _queue_list {
 
 extern queue_list *jlog_queue;
 
+extern pthread_mutex_t mutex;
+
 int queue_init(void);
-log_node *outNode();
+void outNode(log_node **data);
 int putNode(char * data, char *file_name,unsigned int size, unsigned int fsize, unsigned int log_type);
 int checkQueueIsEmpty();
 

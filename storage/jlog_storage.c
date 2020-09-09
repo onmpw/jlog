@@ -2,10 +2,12 @@
 // Created by 迹忆 on 2020/9/7.
 //
 #include <sys/mman.h>
+#include <pthread.h>
 #include "php.h"
 #include "jlog_storage.h"
 
 queue_list *jlog_queue;
+pthread_mutex_t mutex;
 int queue_init(void)
 {
     log_storage_node first_node;
@@ -50,9 +52,9 @@ int checkQueueIsEmpty()
     return JLOG_VSG(used) == 0 ? 1 : 0;
 }
 
-log_node * outNode()
+void outNode(log_node **data)
 {
-    log_node *node,*n;
+    log_node *node;
     log_storage_node *sn;
 
     if(JLOG_VSG(read) == JLOG_VSG(slots)) {
@@ -63,10 +65,12 @@ log_node * outNode()
 
     node = (log_node *) sn->p;
 
-    JLOG_VSG(read) +=1;
-    JLOG_VSG(used) -= 1;
+    memcpy((char *)*data,(char *)node,sn->mm_size);
 
-    return node;
+    JLOG_VSG(read) +=1;
+    pthread_mutex_lock(&mutex);
+    JLOG_VSG(used) -= 1;
+    pthread_mutex_unlock(&mutex);
 }
 
 int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize, unsigned int log_type)
@@ -96,7 +100,7 @@ int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize,
         val->val.size = size;
         val->val.fsize = fsize;
         memcpy(val->val.fname,file_name,fsize);
-        val->val.fname[fsize] = '\0';
+        val->val.fname[fsize] = '\0'; // 增加结束符号
         memcpy(val->val.data, data, size);
 
         // 加入队列
@@ -118,7 +122,9 @@ int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize,
 
         PHP_USER_FREE(val);
         JLOG_VSG(write) += 1;
+        pthread_mutex_lock(&mutex);
         JLOG_VSG(used) += 1;
+        pthread_mutex_unlock(&mutex);
         return 1;
     }
 }
