@@ -17,7 +17,7 @@ PHP_ARG_ENABLE(jlog, whether to enable jlog support,
 Make sure that the comment is aligned:
 [  --enable-jlog           Enable jlog support])
 
-jlog_src="jlog.c storage/jlog_storage.c"
+jlog_src="jlog.c storage/jlog_storage.c log/log_file.c"
 
 if test "$PHP_JLOG" != "no"; then
   dnl Write more examples of tests here...

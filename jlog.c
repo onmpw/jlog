@@ -9,6 +9,8 @@
 #include "php_jlog.h"
 #include "storage/jlog_storage.h"
 #include <pthread.h>
+#include "log/log_file.h"
+
 /* If you declare any globals in php_jlog.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(jlog)
 */
@@ -40,6 +42,23 @@ PHP_INI_END()
    function definition, where the functions purpose is also documented. Please 
    follow this convention for the convenience of others editing your code.
 */
+
+// 写日志
+static int write_log(char *file, char *data,int log_type)
+{
+    int errNo = 0;
+    int len = 0;
+
+    len = log_write(file,data,log_type,errNo);
+    if(errNo != 0) {
+        return 0;
+    }
+
+    return 1;
+
+}
+
+
 void *start_write_log()
 {
     log_node *n;
@@ -52,6 +71,9 @@ void *start_write_log()
 
             // todo 写文件
             printf("getNode-- log_type:%d val:%s filename:%s idle:%d\n", var_node->log_type, var_node->val.data, var_node->val.fname,idle);
+            if(!write_log(var_node->val.fname,var_node->val.data,var_node->log_type)) {
+                continue;
+            }
             memset((char *)var_node,0,JLOG_VSG(node_size));
         }else{
             idle = 1;
