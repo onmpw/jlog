@@ -8,8 +8,8 @@
 #include "ext/standard/info.h"
 #include "php_jlog.h"
 #include "storage/jlog_storage.h"
-#include <pthread.h>
 #include "log/log_file.h"
+#include <pthread.h>
 
 /* If you declare any globals in php_jlog.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(jlog)
@@ -49,7 +49,7 @@ static int write_log(char *file, char *data,int log_type)
     int errNo = 0;
     int len = 0;
 
-    len = log_write(file,data,log_type,errNo);
+    len = log_write(file,data,log_type,&errNo);
     if(errNo != 0) {
         return 0;
     }
@@ -68,13 +68,12 @@ void *start_write_log()
         if(!checkQueueIsEmpty()) {
             outNode(&var_node);
             idle = 0; // 置为0 说明没有空闲
+            var_node->val.data[var_node->val.size] = '\0';  // 给内容加上结束符
 
-            // todo 写文件
-            printf("getNode-- log_type:%d val:%s filename:%s idle:%d\n", var_node->log_type, var_node->val.data, var_node->val.fname,idle);
             if(!write_log(var_node->val.fname,var_node->val.data,var_node->log_type)) {
                 continue;
             }
-            memset((char *)var_node,0,JLOG_VSG(node_size));
+            memset((char *)var_node,'\0',JLOG_VSG(node_size));
         }else{
             idle = 1;
         }
@@ -101,13 +100,20 @@ PHP_FUNCTION(jlog_start)
 PHP_FUNCTION(jlog_info)
 {
     zval *data,*file;
+    char *log_data;
+    int size;
 
     if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"zz",&file,&data) == FAILURE) {
         return;
     }
 
     if(Z_TYPE_P(data) == IS_STRING) {
-        putNode(Z_STRVAL_P(data),Z_STRVAL_P(file),Z_STRLEN_P(data),Z_STRLEN_P(file),J_INFO);
+        size = Z_STRLEN_P(data) + 12;
+        log_data = PHP_USER_ALLOC(size);
+        memcpy(log_data,"local.INFO: ",12);
+        memcpy((char *)log_data + 12, Z_STRVAL_P(data),Z_STRLEN_P(data));
+        putNode(log_data,Z_STRVAL_P(file),size,Z_STRLEN_P(file),J_INFO);
+        PHP_USER_FREE(log_data);
     }
 
     RETURN_TRUE;
