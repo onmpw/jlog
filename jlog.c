@@ -94,6 +94,13 @@ PHP_FUNCTION(jlog_start)
     }
     server_start = 1;
 
+    if (pthread_mutex_init(&mutex, NULL) != 0){
+        // 互斥锁初始化失败
+        php_error(E_ERROR,"互斥锁初始化失败\n");
+    }
+
+    var_node = PHP_USER_ALLOC(JLOG_VSG(node_size));
+
     int ret = pthread_create(&tid,NULL,start_write_log,NULL);
 }
 
@@ -101,22 +108,37 @@ PHP_FUNCTION(jlog_info)
 {
     zval *data,*file;
     char *log_data;
-    int size;
+    int size,flag;
 
     if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"zz",&file,&data) == FAILURE) {
         return;
     }
 
+    flag = 1;
+
     if(Z_TYPE_P(data) == IS_STRING) {
         size = Z_STRLEN_P(data) + 12;
-        log_data = PHP_USER_ALLOC(size);
+        log_data = PHP_USER_ALLOC(size+1);
         memcpy(log_data,"local.INFO: ",12);
         memcpy((char *)log_data + 12, Z_STRVAL_P(data),Z_STRLEN_P(data));
-        putNode(log_data,Z_STRVAL_P(file),size,Z_STRLEN_P(file),J_INFO);
+        log_data[size] = '\0';
+        if(server_start == 0){
+            // 如果没有开启线程服务 则直接写入日志文件
+            if(!write_log(Z_STRVAL_P(file),log_data,J_INFO)) {
+                flag = 0;
+            }
+        }else {
+            putNode(log_data, Z_STRVAL_P(file), size, Z_STRLEN_P(file), J_INFO);
+        }
+
+
         PHP_USER_FREE(log_data);
     }
 
-    RETURN_TRUE;
+    if(flag){
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
 }
 
 PHP_FUNCTION(jlog_stop)
@@ -128,7 +150,8 @@ PHP_FUNCTION(jlog_stop)
     server_start = 0;
     while(!checkQueueEmpty() || !idle) {}
 
-    pthread_kill(tid,9);
+    pthread_cancel(tid);
+    PHP_USER_FREE(var_node);
 }
 
 
@@ -155,12 +178,7 @@ PHP_MINIT_FUNCTION(jlog)
         php_error(E_ERROR,"队列初始化失败\n");
     }
 
-    if (pthread_mutex_init(&mutex, NULL) != 0){
-        // 互斥锁初始化失败
-        php_error(E_ERROR,"互斥锁初始化失败\n");
-    }
 
-    var_node = PHP_USER_ALLOC(JLOG_VSG(node_size));
 
 	return SUCCESS;
 }
@@ -174,7 +192,6 @@ PHP_MSHUTDOWN_FUNCTION(jlog)
 	UNREGISTER_INI_ENTRIES();
 	*/
 	server_start = 0;
-	PHP_USER_FREE(var_node);
 	return SUCCESS;
 }
 /* }}} */
