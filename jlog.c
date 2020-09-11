@@ -141,6 +141,43 @@ PHP_FUNCTION(jlog_info)
     RETURN_FALSE;
 }
 
+PHP_FUNCTION(jlog_error)
+{
+    zval *data,*file;
+    char *log_data;
+    int size,flag;
+
+    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"zz",&file,&data) == FAILURE) {
+        return;
+    }
+
+    flag = 1;
+
+    if(Z_TYPE_P(data) == IS_STRING) {
+        size = Z_STRLEN_P(data) + 13;
+        log_data = PHP_USER_ALLOC(size+1);
+        memcpy(log_data,"local.ERROR: ",13);
+        memcpy((char *)log_data + 13, Z_STRVAL_P(data),Z_STRLEN_P(data));
+        log_data[size] = '\0';
+        if(server_start == 0){
+            // 如果没有开启线程服务 则直接写入日志文件
+            if(!write_log(Z_STRVAL_P(file),log_data,J_INFO)) {
+                flag = 0;
+            }
+        }else {
+            putNode(log_data, Z_STRVAL_P(file), size, Z_STRLEN_P(file), J_INFO);
+        }
+
+        PHP_USER_FREE(log_data);
+    }
+
+    if(flag){
+        RETURN_TRUE;
+    }
+    RETURN_FALSE;
+}
+
+
 PHP_FUNCTION(jlog_stop)
 {
     log_node *n;
@@ -178,8 +215,6 @@ PHP_MINIT_FUNCTION(jlog)
         php_error(E_ERROR,"队列初始化失败\n");
     }
 
-
-
 	return SUCCESS;
 }
 /* }}} */
@@ -191,7 +226,12 @@ PHP_MSHUTDOWN_FUNCTION(jlog)
 	/* uncomment this line if you have INI entries
 	UNREGISTER_INI_ENTRIES();
 	*/
-	server_start = 0;
+	if(server_start == 1) {
+        server_start = 0;
+        while(!checkQueueEmpty() || !idle) {}
+
+        pthread_cancel(tid);
+    }
 	return SUCCESS;
 }
 /* }}} */
@@ -210,6 +250,9 @@ PHP_RINIT_FUNCTION(jlog)
  */
 PHP_RSHUTDOWN_FUNCTION(jlog)
 {
+    if(server_start == 1) {
+        PHP_USER_FREE(var_node);
+    }
 	return SUCCESS;
 }
 /* }}} */
@@ -236,6 +279,7 @@ const zend_function_entry jlog_functions[] = {
 	PHP_FE(jlog_start,NULL)
 	PHP_FE(jlog_stop,NULL)
 	PHP_FE(jlog_info,NULL)
+	PHP_FE(jlog_error,NULL)
 	PHP_FE_END	/* Must be the last line in jlog_functions[] */
 };
 /* }}} */
