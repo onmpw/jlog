@@ -121,6 +121,7 @@ int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize,
         memcpy((char *)node->p,(char *)val,sizeof(log_node) -4 + size);
 
         PHP_USER_FREE(val);
+        val = NULL;
         JLOG_VSG(write) += 1;
         pthread_mutex_lock(&mutex);
         JLOG_VSG(used) += 1;
