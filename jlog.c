@@ -187,8 +187,8 @@ PHP_FUNCTION(jlog_stop)
     server_start = 0;
     while(!checkQueueEmpty() || !idle) {}
 
-    pthread_cancel(tid);
-    pthread_join(tid,NULL);
+    pthread_cancel(tid);     // pthread_cancel() 只是用来结束线程，并不会回收线程的资源
+//    pthread_join(tid,NULL);  // pthread_join() 用来回收线程，释放其占用的资源。
     PHP_USER_FREE(var_node);
 }
 
@@ -232,7 +232,9 @@ PHP_MSHUTDOWN_FUNCTION(jlog)
         while(!checkQueueEmpty() || !idle) {}
 
         pthread_cancel(tid);
+//        pthread_join(tid,NULL);
     }
+    free(jlog_queue);
 	return SUCCESS;
 }
 /* }}} */
