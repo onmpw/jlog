@@ -188,6 +188,7 @@ PHP_FUNCTION(jlog_stop)
     while(!checkQueueEmpty() || !idle) {}
 
     pthread_cancel(tid);
+    pthread_join(tid,NULL);
     PHP_USER_FREE(var_node);
 }
 

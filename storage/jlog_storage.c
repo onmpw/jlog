@@ -105,7 +105,7 @@ int putNode(char * data, char *file_name, unsigned int size, unsigned int fsize,
 
         // 加入队列
         // 如果队列空了， 则读的位置和写的位置必然重合
-        // 但是 由于是多线程兵法，used 等于0 并不一定是队列空了，所以还要加上 读位置与写位置重合
+        // 但是 由于是多线程并发，used 等于0 并不一定是队列空了，所以还要加上 读位置与写位置重合
         if (JLOG_VSG(used) == 0 && JLOG_VSG(write) == JLOG_VSG(read)) {
             JLOG_VSG(write) = 0;
             JLOG_VSG(read) = 0;
