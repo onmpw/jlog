@@ -89,10 +89,15 @@ static int checkQueueEmpty()
 
 PHP_FUNCTION(jlog_start)
 {
+    zend_bool b;
     if(server_start != 0) {
         return ;
     }
     server_start = 1;
+
+    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"|b",&b) == FAILURE) {
+        return ;
+    }
 
     if (pthread_mutex_init(&mutex, NULL) != 0){
         // 互斥锁初始化失败
