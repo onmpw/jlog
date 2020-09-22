@@ -21,27 +21,15 @@ static int server_start;
 pthread_t tid;
 static int idle;
 log_node *var_node;
+
+ZEND_DECLARE_MODULE_GLOBALS(jlog);
+
 /* {{{ PHP_INI
  */
-/* Remove comments and fill if you need to have entries in php.ini
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("jlog.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_jlog_globals, jlog_globals)
-    STD_PHP_INI_ENTRY("jlog.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_jlog_globals, jlog_globals)
+    STD_PHP_INI_ENTRY("jlog.enable_thread",      "1", PHP_INI_SYSTEM, OnUpdateBool, enable_thread, zend_jlog_globals, jlog_globals)
 PHP_INI_END()
-*/
 /* }}} */
-
-/* Remove the following function when you have successfully modified config.m4
-   so that your module can be compiled into PHP, it exists only for testing
-   purposes. */
-
-/* Every user-visible function in PHP should document itself in the source */
-
-/* The previous line is meant for vim and emacs, so it can correctly fold and 
-   unfold functions in source code. See the corresponding marks just before 
-   function definition, where the functions purpose is also documented. Please 
-   follow this convention for the convenience of others editing your code.
-*/
 
 // 写日志
 static int write_log(char *file, char *data,int log_type)
@@ -95,9 +83,13 @@ PHP_FUNCTION(jlog_start)
     }
     server_start = 1;
 
+    b = JLOG_G(enable_thread);
+
     if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,"|b",&b) == FAILURE) {
         return ;
     }
+
+    JLOG_G(enable_thread) = b;
 
     if (pthread_mutex_init(&mutex, NULL) != 0){
         // 互斥锁初始化失败
@@ -106,7 +98,9 @@ PHP_FUNCTION(jlog_start)
 
     var_node = PHP_USER_ALLOC(JLOG_VSG(node_size));
 
-    int ret = pthread_create(&tid,NULL,start_write_log,NULL);
+    if(JLOG_G(enable_thread)) {
+        int ret = pthread_create(&tid, NULL, start_write_log, NULL);
+    }
 }
 
 PHP_FUNCTION(jlog_info)
@@ -127,7 +121,7 @@ PHP_FUNCTION(jlog_info)
         memcpy(log_data,"local.INFO: ",12);
         memcpy((char *)log_data + 12, Z_STRVAL_P(data),Z_STRLEN_P(data));
         log_data[size] = '\0';
-        if(server_start == 0){
+        if(server_start == 0 || !JLOG_G(enable_thread)){
             // 如果没有开启线程服务 则直接写入日志文件
             if(!write_log(Z_STRVAL_P(file),log_data,J_INFO)) {
                 flag = 0;
@@ -164,7 +158,7 @@ PHP_FUNCTION(jlog_error)
         memcpy(log_data,"local.ERROR: ",13);
         memcpy((char *)log_data + 13, Z_STRVAL_P(data),Z_STRLEN_P(data));
         log_data[size] = '\0';
-        if(server_start == 0){
+        if(server_start == 0 || !JLOG_G(enable_thread)){
             // 如果没有开启线程服务 则直接写入日志文件
             if(!write_log(Z_STRVAL_P(file),log_data,J_INFO)) {
                 flag = 0;
@@ -190,36 +184,39 @@ PHP_FUNCTION(jlog_stop)
         return ;
     }
     server_start = 0;
-    while(!checkQueueEmpty() || !idle) {}
+    if(JLOG_G(enable_thread)) {
+        while (!checkQueueEmpty() || !idle) {}
 
-    pthread_cancel(tid);     // pthread_cancel() 只是用来结束线程，并不会回收线程的资源
-    pthread_join(tid,NULL);  // pthread_join() 用来回收线程，释放其占用的资源。
+        pthread_cancel(tid);     // pthread_cancel() 只是用来结束线程，并不会回收线程的资源
+        pthread_join(tid, NULL);  // pthread_join() 用来回收线程，释放其占用的资源。
+    }
     PHP_USER_FREE(var_node);
 }
 
 
 /* {{{ php_jlog_init_globals
  */
-/* Uncomment this function if you have INI entries
-static void php_jlog_init_globals(zend_jlog_globals *jlog_globals)
+/*static void php_jlog_init_globals(zend_jlog_globals *jlog_globals)
 {
-	jlog_globals->global_value = 0;
-	jlog_globals->global_string = NULL;
-}
-*/
+	jlog_globals->enable_thread = 0;
+}*/
 /* }}} */
+
+PHP_GINIT_FUNCTION(jlog)
+{
+    JLOG_G(enable_thread) = 1;
+}
 
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(jlog)
 {
-	/* If you have INI entries, uncomment these lines 
-	REGISTER_INI_ENTRIES();
-	*/
-	server_start = 0;
+
+    server_start = 0;
     if(!queue_init()) {
         php_error(E_ERROR,"队列初始化失败\n");
     }
+    REGISTER_INI_ENTRIES();
 
 	return SUCCESS;
 }
@@ -229,15 +226,15 @@ PHP_MINIT_FUNCTION(jlog)
  */
 PHP_MSHUTDOWN_FUNCTION(jlog)
 {
-	/* uncomment this line if you have INI entries
 	UNREGISTER_INI_ENTRIES();
-	*/
 	if(server_start == 1) {
         server_start = 0;
-        while(!checkQueueEmpty() || !idle) {}
+        if(JLOG_G(enable_thread)) {
+            while (!checkQueueEmpty() || !idle) {}
 
-        pthread_cancel(tid);
-        pthread_join(tid,NULL);
+            pthread_cancel(tid);
+            pthread_join(tid, NULL);
+        }
     }
     free(jlog_queue);
 	return SUCCESS;
@@ -292,25 +289,28 @@ const zend_function_entry jlog_functions[] = {
 };
 /* }}} */
 
-/* {{{ jlog_module_entry
- */
-zend_module_entry jlog_module_entry = {
-	STANDARD_MODULE_HEADER,
-	"jlog",
-	jlog_functions,
-	PHP_MINIT(jlog),
-	PHP_MSHUTDOWN(jlog),
-	PHP_RINIT(jlog),		/* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(jlog),	/* Replace with NULL if there's nothing to do at request end */
-	PHP_MINFO(jlog),
-	PHP_JLOG_VERSION,
-	STANDARD_MODULE_PROPERTIES
-};
-/* }}} */
-
 #ifdef COMPILE_DL_JLOG
 ZEND_GET_MODULE(jlog)
 #endif
+/* {{{ jlog_module_entry
+ */
+zend_module_entry jlog_module_entry = {
+        STANDARD_MODULE_HEADER,
+        "jlog",
+        jlog_functions,
+        PHP_MINIT(jlog),
+        PHP_MSHUTDOWN(jlog),
+        PHP_RINIT(jlog),		/* Replace with NULL if there's nothing to do at request start */
+        PHP_RSHUTDOWN(jlog),	/* Replace with NULL if there's nothing to do at request end */
+        PHP_MINFO(jlog),
+        PHP_JLOG_VERSION,
+        PHP_MODULE_GLOBALS(jlog),
+        PHP_GINIT(jlog),
+        NULL,
+        NULL,
+        STANDARD_MODULE_PROPERTIES_EX
+};
+/* }}} */
 
 /*
  * Local variables:

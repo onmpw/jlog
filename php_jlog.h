@@ -19,15 +19,16 @@ extern zend_module_entry jlog_module_entry;
 #include "TSRM.h"
 #endif
 
-/* 
-  	Declare any global variables you may need between the BEGIN
-	and END macros here:     
-
 ZEND_BEGIN_MODULE_GLOBALS(jlog)
-	long  global_value;
-	char *global_string;
+	zend_bool  enable_thread;
 ZEND_END_MODULE_GLOBALS(jlog)
-*/
+
+PHP_MINIT_FUNCTION(jlog);
+PHP_MSHUTDOWN_FUNCTION(jlog);
+PHP_RINIT_FUNCTION(jlog);
+PHP_RSHUTDOWN_FUNCTION(jlog);
+PHP_MINFO_FUNCTION(jlog);
+
 
 /* In every utility function you add that needs to use variables 
    in php_jlog_globals, call TSRMLS_FETCH(); after declaring other 
