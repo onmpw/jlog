@@ -204,7 +204,7 @@ PHP_FUNCTION(jlog_stop)
 
 PHP_GINIT_FUNCTION(jlog)
 {
-    JLOG_G(enable_thread) = 1;
+    jlog_globals->enable_thread = 1;
 }
 
 /* {{{ PHP_MINIT_FUNCTION

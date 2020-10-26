@@ -22,13 +22,14 @@ static void get_current_date_time(char *date_time)
     minute = tmp_ptr->tm_min;
     sec = tmp_ptr->tm_sec;
 
+//    sprintf(date_time,"[%d-%d%d-%d%d %d%d:%d%d:%d%d] ",year,month/10,month%10,day/10,day%10,hour/10,hour%10,minute/10,minute%10,sec/10,sec%10);
     sprintf(date_time,"[%d-%d%d-%d%d %d%d:%d%d:%d%d] ",year,month/10,month%10,day/10,day%10,hour/10,hour%10,minute/10,minute%10,sec/10,sec%10);
 }
 
 int log_write(char *file,char *data, int log_type, int *errNo)
 {
     FILE *fptr;
-    char formatDateTime[22];  // 存储时间 格式 [YYYY-mm-dd HH:ii:ss] 然后后面跟一个空格
+    char formatDateTime[23];  // 存储时间 格式 [YYYY-mm-dd HH:ii:ss] 然后后面跟一个空格
     int wlen;
 
     fptr = fopen(file,"a+");

@@ -42,8 +42,10 @@ PHP_MINFO_FUNCTION(jlog);
 
 #ifdef ZTS
 #define JLOG_G(v) TSRMG(jlog_globals_id, zend_jlog_globals *, v)
+extern int jlog_globals_id;
 #else
 #define JLOG_G(v) (jlog_globals.v)
+extern zend_jlog_globals jlog_globals;
 #endif
 
 #define J_ERROR     1
