@@ -5,7 +5,7 @@
 extern zend_module_entry jlog_module_entry;
 #define phpext_jlog_ptr &jlog_module_entry
 
-#define PHP_JLOG_VERSION "0.3.0" /* Replace with version number for your extension */
+#define PHP_JLOG_VERSION "0.4.5" /* Replace with version number for your extension */
 
 #ifdef PHP_WIN32
 #	define PHP_JLOG_API __declspec(dllexport)
